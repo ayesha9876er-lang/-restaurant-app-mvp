@@ -1,0 +1,17 @@
+export const MENU_ITEMS = [
+  { id: '1', name: 'Margherita Pizza', category: 'Main Course', price: 12.99, description: 'Classic cheese and tomato pizza', image: 'https://via.placeholder.com/150' },
+  { id: '2', name: 'Pepperoni Pizza', category: 'Main Course', price: 14.99, description: 'Loaded with pepperoni and mozzarella', image: 'https://via.placeholder.com/150' },
+  { id: '3', name: 'Chicken Burger', category: 'Main Course', price: 9.99, description: 'Crispy chicken patty with lettuce', image: 'https://via.placeholder.com/150' },
+  { id: '4', name: 'Beef Burger', category: 'Main Course', price: 11.99, description: 'Juicy beef patty with cheddar cheese', image: 'https://via.placeholder.com/150' },
+  { id: '5', name: 'Caesar Salad', category: 'Starters', price: 7.99, description: 'Fresh romaine lettuce with Caesar dressing', image: 'https://via.placeholder.com/150' },
+  { id: '6', name: 'Garlic Bread', category: 'Starters', price: 4.99, description: 'Toasted bread with garlic butter', image: 'https://via.placeholder.com/150' },
+  { id: '7', name: 'French Fries', category: 'Starters', price: 3.99, description: 'Crispy golden fries', image: 'https://via.placeholder.com/150' },
+  { id: '8', name: 'Chocolate Cake', category: 'Desserts', price: 6.99, description: 'Rich dark chocolate layer cake', image: 'https://via.placeholder.com/150' },
+  { id: '9', name: 'Ice Cream Sundae', category: 'Desserts', price: 5.99, description: 'Vanilla ice cream with chocolate syrup', image: 'https://via.placeholder.com/150' },
+  { id: '10', name: 'Cheesecake', category: 'Desserts', price: 6.50, description: 'New York style strawberry cheesecake', image: 'https://via.placeholder.com/150' },
+  { id: '11', name: 'Fresh Orange Juice', category: 'Drinks', price: 3.50, description: '100% freshly squeezed orange juice', image: 'https://via.placeholder.com/150' },
+  { id: '12', name: 'Iced Coffee', category: 'Drinks', price: 4.25, description: 'Cold brewed coffee with milk', image: 'https://via.placeholder.com/150' },
+  { id: '13', name: 'Coca Cola', category: 'Drinks', price: 2.50, description: 'Chilled soft drink', image: 'https://via.placeholder.com/150' },
+  { id: '14', name: 'Pasta Carbonara', category: 'Main Course', price: 13.50, description: 'Creamy pasta with bacon and parmesan', image: 'https://via.placeholder.com/150' },
+  { id: '15', name: 'Spring Rolls', category: 'Starters', price: 5.50, description: 'Crispy vegetable spring rolls', image: 'https://via.placeholder.com/150' },
+];
