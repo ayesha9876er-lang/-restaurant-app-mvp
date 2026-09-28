@@ -20,7 +20,7 @@ import {
 import { CartProvider } from './src/context/CartContext';
 
 import LoginScreen from './src/screens/LoginScreen';
-
+import MenuScreen from './src/screens/MenuScreen';
 
 function MainApp() {
   const { user } = useContext(AuthContext);
@@ -40,37 +40,7 @@ function MainApp() {
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
       />
 
-      {!user ? (
-        <LoginScreen />
-      ) : (
-        <View
-          style={[
-            styles.centered,
-            {
-              backgroundColor: theme.background,
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.welcomeText,
-              {
-                color: theme.text,
-              },
-            ]}
-          >
-            Welcome!
-          </Text>
-
-          <Text style={{ color: theme.text }}>
-            {user.name}
-          </Text>
-
-          <Text style={{ color: theme.text }}>
-            Role: {user.role.toUpperCase()}
-          </Text>
-        </View>
-      )}
+      {!user ? <LoginScreen /> : <MenuScreen />}
 
     </SafeAreaView>
   );
