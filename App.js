@@ -1,10 +1,8 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import {
   SafeAreaView,
   StatusBar,
   StyleSheet,
-  View,
-  Text,
 } from 'react-native';
 
 import {
@@ -21,10 +19,13 @@ import { CartProvider } from './src/context/CartContext';
 
 import LoginScreen from './src/screens/LoginScreen';
 import MenuScreen from './src/screens/MenuScreen';
+import SearchScreen from './src/screens/SearchScreen';
+
 
 function MainApp() {
   const { user } = useContext(AuthContext);
   const { theme, isDarkMode } = useContext(ThemeContext);
+  const [screen, setScreen] = useState('menu'); // 'menu' | 'search'
 
   return (
     <SafeAreaView
@@ -40,7 +41,13 @@ function MainApp() {
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
       />
 
-      {!user ? <LoginScreen /> : <MenuScreen />}
+      {!user ? (
+        <LoginScreen />
+      ) : screen === 'search' ? (
+        <SearchScreen onBack={() => setScreen('menu')} />
+      ) : (
+        <MenuScreen onSearchPress={() => setScreen('search')} />
+      )}
 
     </SafeAreaView>
   );
@@ -63,17 +70,5 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
   },
 });

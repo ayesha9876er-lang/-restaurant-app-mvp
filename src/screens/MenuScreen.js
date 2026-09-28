@@ -6,7 +6,7 @@ import { ThemeContext } from '../context/ThemeContext';
 import { CartContext } from '../context/CartContext';
 import MenuItemCard from '../components/MenuItemCard';
 
-export default function MenuScreen() {
+export default function MenuScreen({ onSearchPress }) {
   const { theme } = useContext(ThemeContext);
   const { addItem } = useContext(CartContext);
 
@@ -73,7 +73,12 @@ export default function MenuScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Our Menu</Text>
-        <Text style={[styles.headerCount, { color: theme.secondaryText }]}>{filteredItems.length} items</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Text style={[styles.headerCount, { color: theme.secondaryText }]}>{filteredItems.length} items</Text>
+          <TouchableOpacity onPress={onSearchPress}>
+            <Text style={{ color: theme.primary, fontWeight: 'bold' }}>🔍 Search</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
