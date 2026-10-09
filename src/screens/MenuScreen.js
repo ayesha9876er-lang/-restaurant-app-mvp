@@ -2,12 +2,12 @@ import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 
 import { MENU_ITEMS, CATEGORIES } from '../data/menu';
-import { ThemeContext } from '../context/ThemeContext';
+import { useTheme } from '../hooks/useTheme';
 import { CartContext } from '../context/CartContext';
 import MenuItemCard from '../components/MenuItemCard';
 
 export default function MenuScreen({ onSearchPress }) {
-  const { theme } = useContext(ThemeContext);
+  const { theme } = useTheme();
   const { addItem } = useContext(CartContext);
 
   const [items, setItems] = useState([]);

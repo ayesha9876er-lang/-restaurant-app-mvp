@@ -10,8 +10,8 @@ import {
   ScrollView,
 } from 'react-native';
 
-import { AuthContext } from '../context/AuthContext';
-import { ThemeContext } from '../context/ThemeContext';
+import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../hooks/useTheme';
 
 export default function LoginScreen() {
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
@@ -25,8 +25,8 @@ export default function LoginScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
 
-  const { login, signup } = useContext(AuthContext);
-  const { theme, isDarkMode, toggleTheme } = useContext(ThemeContext);
+  const { login, signup } = useAuth();
+ const { theme, isDark, toggleTheme } = useTheme();
 
   const clearError = (field) => {
     if (errors[field]) {
@@ -100,11 +100,11 @@ export default function LoginScreen() {
     >
       <TouchableOpacity style={styles.themeToggle} onPress={toggleTheme}>
         <Text style={{ color: theme.text }}>
-          {isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+          {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
         </Text>
       </TouchableOpacity>
 
-      <Text style={[styles.title, { color: theme.text }]}>FeastFlow Restaurant</Text>
+      <Text style={[styles.title, { color: theme.text }]}>flowfeast Restaurant</Text>
       <Text style={[styles.subtitle, { color: theme.text }]}>
         {mode === 'login' ? 'Sign in to continue' : 'Create a new account'}
       </Text>

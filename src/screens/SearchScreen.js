@@ -9,12 +9,12 @@ import {
 } from 'react-native';
 
 import { MENU_ITEMS } from '../data/menu';
-import { ThemeContext } from '../context/ThemeContext';
+import { useTheme } from '../hooks/useTheme';
 import { CartContext } from '../context/CartContext';
 import MenuItemCard from '../components/MenuItemCard';
 
 export default function SearchScreen({ onBack }) {
-  const { theme } = useContext(ThemeContext);
+  const { theme } = useTheme();
   const { addItem } = useContext(CartContext);
 
   const [query, setQuery] = useState('');
@@ -22,14 +22,16 @@ export default function SearchScreen({ onBack }) {
   const [recentSearches, setRecentSearches] = useState([]);
   const [showBackToTop, setShowBackToTop] = useState(false);
 
+  // Refs do NOT cause a re-render when changed, unlike state.
   const searchInputRef = useRef(null);
   const flatListRef = useRef(null);
   const debounceTimer = useRef(null);
   const renderCount = useRef(0);
 
-  renderCount.current += 1;
+  renderCount.current += 1; // just counting, not triggering any re-render
 
   useEffect(() => {
+    // Cleanup: clear any pending debounce timer if the screen unmounts.
     return () => {
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current);
@@ -51,6 +53,7 @@ export default function SearchScreen({ onBack }) {
   const handleChangeText = (text) => {
     setQuery(text);
 
+    // Manual debounce using useRef: no external library, no useState for the timer.
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
     }
@@ -68,13 +71,14 @@ export default function SearchScreen({ onBack }) {
         (s) => s.toLowerCase() !== trimmed.toLowerCase()
       );
       const updated = [trimmed, ...withoutDuplicate];
-      return updated.slice(0, 5);
+      return updated.slice(0, 5); // keep only the last 5
     });
   };
 
   const clearSearch = () => {
     setQuery('');
     setResults([]);
+    // Clear text but keep keyboard focus on the input.
     searchInputRef.current?.focus();
   };
 

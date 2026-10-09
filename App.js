@@ -1,74 +1,42 @@
-import React, { useContext, useState } from 'react';
-import {
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-} from 'react-native';
+import React from 'react';
+import { StatusBar, StyleSheet } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import {
-  AuthProvider,
-  AuthContext,
-} from './src/context/AuthContext';
-
-import {
-  ThemeProvider,
-  ThemeContext,
-} from './src/context/ThemeContext';
-
+import { AuthProvider } from './src/context/AuthContext';
+import { ThemeProvider } from './src/context/ThemeContext';
 import { CartProvider } from './src/context/CartContext';
 
-import LoginScreen from './src/screens/LoginScreen';
-import MenuScreen from './src/screens/MenuScreen';
-import SearchScreen from './src/screens/SearchScreen';
-
+import { useTheme } from './src/hooks/useTheme';
+import AppNavigator from './src/navigation/AppNavigator';
 
 function MainApp() {
-  const { user } = useContext(AuthContext);
-  const { theme, isDarkMode } = useContext(ThemeContext);
-  const [screen, setScreen] = useState('menu'); // 'menu' | 'search'
+  const { theme, isDark } = useTheme();
 
   return (
     <SafeAreaView
-      style={[
-        styles.container,
-        {
-          backgroundColor: theme.background,
-        },
-      ]}
+      style={[styles.container, { backgroundColor: theme.background }]}
+      edges={['top']}
     >
-
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-      />
-
-      {!user ? (
-        <LoginScreen />
-      ) : screen === 'search' ? (
-        <SearchScreen onBack={() => setScreen('menu')} />
-      ) : (
-        <MenuScreen onSearchPress={() => setScreen('search')} />
-      )}
-
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <AppNavigator />
     </SafeAreaView>
   );
 }
 
-
 export default function App() {
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <CartProvider>
-          <MainApp />
-        </CartProvider>
-      </ThemeProvider>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <CartProvider>
+            <MainApp />
+          </CartProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
 });
