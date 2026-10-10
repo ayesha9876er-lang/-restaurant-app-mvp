@@ -3,10 +3,17 @@ const cors = require('cors');
 require('dotenv').config();
 
 const connectDB = require('./config/db');
+const authRoutes = require('./routes/authRoutes');
 const menuRoutes = require('./routes/menuRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Stop early with a clear message if the secret is missing from .env
+if (!process.env.JWT_SECRET) {
+  console.error('JWT_SECRET is missing. Add it to your .env file.');
+  process.exit(1);
+}
 
 // Middleware
 app.use(cors());
@@ -17,7 +24,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
-// Menu routes
+// Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/menu', menuRoutes);
 
 // 404 handler: runs for any URL that did not match a route above
