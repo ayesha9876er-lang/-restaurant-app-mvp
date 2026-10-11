@@ -18,6 +18,12 @@ const orderSchema = new mongoose.Schema(
       type: [orderItemSchema],
       validate: [(v) => v.length > 0, 'An order needs at least one item'],
     },
+    // The bill, worked out by the server (see orderController.js)
+    subtotal: { type: Number, required: true, min: 0 },
+    serviceCharge: { type: Number, default: 0, min: 0 },
+    tax: { type: Number, default: 0, min: 0 },
+    discount: { type: Number, default: 0, min: 0 },
+    promoCode: { type: String, default: null },
     total: { type: Number, required: true, min: 0 },
     type: { type: String, enum: ['dine-in', 'takeaway'], required: true },
     table: { type: mongoose.Schema.Types.ObjectId, ref: 'Table' }, // dine-in only
