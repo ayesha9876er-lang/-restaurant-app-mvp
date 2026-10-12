@@ -8,7 +8,8 @@ import {
   StyleSheet,
 } from 'react-native';
 
-import { MENU_ITEMS } from '../data/menu';
+import { request } from '../api/client';
+import { withId } from '../api/menu';
 import { useTheme } from '../hooks/useTheme';
 import { CartContext } from '../context/CartContext';
 import MenuItemCard from '../components/MenuItemCard';
@@ -19,6 +20,7 @@ export default function SearchScreen({ onBack }) {
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
+  const [searchError, setSearchError] = useState('');
   const [recentSearches, setRecentSearches] = useState([]);
   const [showBackToTop, setShowBackToTop] = useState(false);
 
@@ -27,33 +29,47 @@ export default function SearchScreen({ onBack }) {
   const flatListRef = useRef(null);
   const debounceTimer = useRef(null);
   const renderCount = useRef(0);
+  const latestSearch = useRef(0); // numbers the searches so an old answer cannot replace a newer one
 
   renderCount.current += 1; // just counting, not triggering any re-render
 
   useEffect(() => {
-    // Cleanup: clear any pending debounce timer if the screen unmounts.
     return () => {
+      // Cleanup: stop the pending timer and ignore any answer that arrives later.
+      latestSearch.current += 1;
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current);
       }
     };
   }, []);
 
-  const runSearch = (text) => {
+  // Searching is now done by the server: GET /api/menu?search=...
+  const runSearch = async (text) => {
+    const searchId = ++latestSearch.current;
+
     if (!text.trim()) {
       setResults([]);
+      setSearchError('');
       return;
     }
-    const filtered = MENU_ITEMS.filter((item) =>
-      item.name.toLowerCase().includes(text.trim().toLowerCase())
-    );
-    setResults(filtered);
+
+    try {
+      const data = await request(`/menu?search=${encodeURIComponent(text.trim())}`);
+      if (searchId === latestSearch.current) {
+        setResults(data.map(withId));
+        setSearchError('');
+      }
+    } catch (error) {
+      if (searchId === latestSearch.current) {
+        setSearchError(error.message);
+      }
+    }
   };
 
   const handleChangeText = (text) => {
     setQuery(text);
 
-    // Manual debounce using useRef: no external library, no useState for the timer.
+    // Manual debounce using useRef: wait 400ms after the last key press.
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
     }
@@ -67,18 +83,16 @@ export default function SearchScreen({ onBack }) {
     if (!trimmed) return;
 
     setRecentSearches((prev) => {
-      const withoutDuplicate = prev.filter(
-        (s) => s.toLowerCase() !== trimmed.toLowerCase()
-      );
-      const updated = [trimmed, ...withoutDuplicate];
-      return updated.slice(0, 5); // keep only the last 5
+      const withoutDuplicate = prev.filter((s) => s.toLowerCase() !== trimmed.toLowerCase());
+      return [trimmed, ...withoutDuplicate].slice(0, 5); // keep only the last 5
     });
   };
 
   const clearSearch = () => {
     setQuery('');
     setResults([]);
-    // Clear text but keep keyboard focus on the input.
+    setSearchError('');
+    latestSearch.current += 1; // ignore any search still in flight
     searchInputRef.current?.focus();
   };
 
@@ -87,8 +101,7 @@ export default function SearchScreen({ onBack }) {
   };
 
   const handleScroll = (event) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    setShowBackToTop(offsetY > 300);
+    setShowBackToTop(event.nativeEvent.contentOffset.y > 300);
   };
 
   const scrollToTop = () => {
@@ -143,18 +156,18 @@ export default function SearchScreen({ onBack }) {
         </View>
       )}
 
+      {searchError ? <Text style={styles.errorText}>{searchError}</Text> : null}
+
       <FlatList
         ref={flatListRef}
         data={results}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <MenuItemCard item={item} theme={theme} onAddToCart={addItem} />
-        )}
+        renderItem={({ item }) => <MenuItemCard item={item} theme={theme} onAddToCart={addItem} />}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         contentContainerStyle={{ paddingVertical: 10, paddingBottom: 60 }}
         ListEmptyComponent={
-          query.length > 0 ? (
+          query.length > 0 && !searchError ? (
             <Text style={{ color: theme.text, textAlign: 'center', marginTop: 40 }}>
               No items match "{query}".
             </Text>
@@ -163,10 +176,7 @@ export default function SearchScreen({ onBack }) {
       />
 
       {showBackToTop && (
-        <TouchableOpacity
-          style={[styles.backToTop, { backgroundColor: theme.primary }]}
-          onPress={scrollToTop}
-        >
+        <TouchableOpacity style={[styles.backToTop, { backgroundColor: theme.primary }]} onPress={scrollToTop}>
           <Text style={styles.backToTopText}>Back to Top</Text>
         </TouchableOpacity>
       )}
@@ -192,6 +202,7 @@ const styles = StyleSheet.create({
   recentTitle: { fontSize: 12, marginBottom: 6 },
   recentChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   recentChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  errorText: { color: '#E63946', fontSize: 13, paddingHorizontal: 16, marginTop: 6 },
   backToTop: {
     position: 'absolute',
     bottom: 20,

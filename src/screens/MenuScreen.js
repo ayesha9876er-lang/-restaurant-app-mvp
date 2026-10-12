@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useMemo, useContext } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 
-import { MENU_ITEMS, CATEGORIES } from '../data/menu';
+import { CATEGORIES, withId } from '../api/menu';
+import { useApi } from '../hooks/useApi';
 import { useTheme } from '../hooks/useTheme';
 import { CartContext } from '../context/CartContext';
 import MenuItemCard from '../components/MenuItemCard';
@@ -10,46 +11,25 @@ export default function MenuScreen({ onSearchPress }) {
   const { theme } = useTheme();
   const { addItem } = useContext(CartContext);
 
-  const [items, setItems] = useState([]);
+  // The menu now comes from the server (GET /api/menu) instead of a fake Promise.
+  const { data, loading, error, refetch } = useApi('/menu');
+
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadMenu = () => {
-    setIsLoading(true);
-    setHasError(false);
-
-    const timer = setTimeout(() => {
-      const didFail = false; // set true manually to test the error state
-      if (didFail) {
-        setHasError(true);
-      } else {
-        setItems(MENU_ITEMS);
-      }
-      setIsLoading(false);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  };
-
-  useEffect(() => {
-    const cleanup = loadMenu();
-    return cleanup;
-  }, []); // empty dependency array — runs exactly once, when the screen first mounts
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => {
-      setItems(MENU_ITEMS);
-      setRefreshing(false);
-    }, 800);
-  };
+  const items = useMemo(() => (data || []).map(withId), [data]);
 
   const filteredItems =
     selectedCategory === 'All' ? items : items.filter((item) => item.category === selectedCategory);
 
-  if (isLoading) {
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  };
+
+  // First load: nothing to show yet, so show the spinner.
+  if (loading && !data) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
@@ -58,11 +38,12 @@ export default function MenuScreen({ onSearchPress }) {
     );
   }
 
-  if (hasError) {
+  // The first load failed: show the message and a Retry button.
+  if (error && !data) {
     return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <Text style={{ color: theme.text, marginBottom: 12 }}>Something went wrong while loading the menu.</Text>
-        <TouchableOpacity style={[styles.retryButton, { backgroundColor: theme.primary }]} onPress={loadMenu}>
+      <View style={[styles.centered, { backgroundColor: theme.background, padding: 24 }]}>
+        <Text style={{ color: theme.text, marginBottom: 12, textAlign: 'center' }}>{error}</Text>
+        <TouchableOpacity style={[styles.retryButton, { backgroundColor: theme.primary }]} onPress={refetch}>
           <Text style={styles.retryText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -80,6 +61,9 @@ export default function MenuScreen({ onSearchPress }) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* A refresh failed, but we still have the old menu to show. */}
+      {error ? <Text style={styles.banner}>Could not refresh: {error}</Text> : null}
 
       <FlatList
         horizontal
@@ -118,6 +102,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
   headerTitle: { fontSize: 22, fontWeight: 'bold' },
   headerCount: { fontSize: 13 },
+  banner: { color: '#E63946', fontSize: 12, paddingHorizontal: 16, marginBottom: 4 },
   categoryList: { flexGrow: 0, paddingHorizontal: 12, marginBottom: 8 },
   categoryChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginHorizontal: 4 },
   retryButton: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },

@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -20,18 +20,19 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState('customer');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState('');
 
   const { login, signup } = useAuth();
- const { theme, isDark, toggleTheme } = useTheme();
+  const { theme, isDark, toggleTheme } = useTheme();
 
   const clearError = (field) => {
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: null }));
     }
+    setServerError('');
   };
 
   const validate = () => {
@@ -63,48 +64,47 @@ export default function LoginScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
 
     setIsSubmitting(true);
+    setServerError('');
 
-    setTimeout(() => {
-      let result;
-      if (mode === 'login') {
-        result = login(email, password);
-      } else {
-        result = signup(fullName, email, password, role);
-      }
+    // The server now does the real work, so the fake 1 second delay is gone.
+    const result =
+      mode === 'login'
+        ? await login(email.trim(), password)
+        : await signup(fullName.trim(), email.trim(), password);
 
-      setIsSubmitting(false);
+    setIsSubmitting(false);
 
-      if (!result.success) {
-        Alert.alert(mode === 'login' ? 'Login Failed' : 'Signup Failed', result.message);
-      }
-    }, 1000);
+    if (!result.success) {
+      setServerError(result.message);
+      Alert.alert(mode === 'login' ? 'Login Failed' : 'Signup Failed', result.message);
+    }
+    // On success the navigator switches screens by itself (user is now set).
   };
 
   const switchMode = () => {
     setMode((prev) => (prev === 'login' ? 'signup' : 'login'));
     setErrors({});
+    setServerError('');
     setFullName('');
     setEmail('');
     setPassword('');
     setConfirmPassword('');
-    setRole('customer');
   };
 
   return (
     <ScrollView
       contentContainerStyle={[styles.container, { backgroundColor: theme.background }]}
+      keyboardShouldPersistTaps="handled"
     >
       <TouchableOpacity style={styles.themeToggle} onPress={toggleTheme}>
-        <Text style={{ color: theme.text }}>
-          {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
-        </Text>
+        <Text style={{ color: theme.text }}>{isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}</Text>
       </TouchableOpacity>
 
-      <Text style={[styles.title, { color: theme.text }]}>flowfeast Restaurant</Text>
+      <Text style={[styles.title, { color: theme.text }]}>FlowFeast Restaurant</Text>
       <Text style={[styles.subtitle, { color: theme.text }]}>
         {mode === 'login' ? 'Sign in to continue' : 'Create a new account'}
       </Text>
@@ -162,24 +162,10 @@ export default function LoginScreen() {
               autoCapitalize="none"
             />
             {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
-
-            <Text style={[styles.roleLabel, { color: theme.text }]}>I am a:</Text>
-            <View style={styles.roleRow}>
-              <TouchableOpacity
-                style={[styles.roleButton, { borderColor: theme.primary, backgroundColor: role === 'customer' ? theme.primary : 'transparent' }]}
-                onPress={() => setRole('customer')}
-              >
-                <Text style={{ color: role === 'customer' ? '#FFF' : theme.text }}>Customer</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.roleButton, { borderColor: theme.primary, backgroundColor: role === 'manager' ? theme.primary : 'transparent' }]}
-                onPress={() => setRole('manager')}
-              >
-                <Text style={{ color: role === 'manager' ? '#FFF' : theme.text }}>Manager</Text>
-              </TouchableOpacity>
-            </View>
           </>
         )}
+
+        {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
 
         <TouchableOpacity
           style={[styles.button, { backgroundColor: theme.primary, opacity: isSubmitting ? 0.7 : 1 }]}
@@ -221,9 +207,7 @@ const styles = StyleSheet.create({
   passwordRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, marginBottom: 4 },
   passwordInput: { flex: 1, paddingVertical: 12, fontSize: 16 },
   errorText: { color: '#E63946', fontSize: 12, marginBottom: 10 },
-  roleLabel: { marginTop: 8, marginBottom: 8, fontWeight: 'bold' },
-  roleRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  roleButton: { flex: 1, borderWidth: 1, borderRadius: 8, padding: 10, alignItems: 'center' },
+  serverError: { color: '#E63946', fontSize: 14, marginTop: 8, textAlign: 'center' },
   button: { padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
   buttonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
   switchModeButton: { marginTop: 16, alignItems: 'center' },

@@ -1,15 +1,17 @@
-import React from 'react';
-import { Text } from 'react-native';
+import React, { useContext } from 'react';
+import { Text, View, ActivityIndicator } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
+import { CartContext } from '../context/CartContext';
 
 import LoginScreen from '../screens/LoginScreen';
 import MenuScreen from '../screens/MenuScreen';
 import SearchScreen from '../screens/SearchScreen';
+import CartScreen from '../screens/CartScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ManagerDashboardScreen from '../screens/ManagerDashboardScreen';
 
@@ -17,7 +19,6 @@ const RootStack = createNativeStackNavigator();
 const MenuStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Nested stack: the Menu tab contains its own stack (Menu list -> Search).
 function MenuStackNavigator() {
   return (
     <MenuStack.Navigator screenOptions={{ headerShown: false }}>
@@ -33,6 +34,34 @@ function MenuStackNavigator() {
   );
 }
 
+// Small red circle shown on the Cart tab icon with the current item count.
+function CartIcon() {
+  const { itemCount } = useContext(CartContext);
+  return (
+    <View>
+      <Text style={{ fontSize: 18 }}>🛒</Text>
+      {itemCount > 0 && (
+        <View
+          style={{
+            position: 'absolute',
+            top: -4,
+            right: -8,
+            backgroundColor: '#E63946',
+            borderRadius: 8,
+            minWidth: 16,
+            height: 16,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 3,
+          }}
+        >
+          <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>{itemCount}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 function MainTabs() {
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -43,10 +72,7 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: theme.cardBackground,
-          borderTopColor: theme.border,
-        },
+        tabBarStyle: { backgroundColor: theme.cardBackground, borderTopColor: theme.border },
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.secondaryText,
       }}
@@ -60,11 +86,18 @@ function MainTabs() {
       )}
 
       {!isManager && (
-        <Tab.Screen
-          name="Menu"
-          component={MenuStackNavigator}
-          options={{ tabBarIcon: () => <Text style={{ fontSize: 18 }}>🍽️</Text> }}
-        />
+        <>
+          <Tab.Screen
+            name="Menu"
+            component={MenuStackNavigator}
+            options={{ tabBarIcon: () => <Text style={{ fontSize: 18 }}>🍽️</Text> }}
+          />
+          <Tab.Screen
+            name="Cart"
+            component={CartScreen}
+            options={{ tabBarIcon: () => <CartIcon /> }}
+          />
+        </>
       )}
 
       <Tab.Screen
@@ -77,7 +110,7 @@ function MainTabs() {
 }
 
 export default function AppNavigator() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const { theme, isDark } = useTheme();
 
   const baseTheme = isDark ? DarkTheme : DefaultTheme;
@@ -92,6 +125,15 @@ export default function AppNavigator() {
       primary: theme.primary,
     },
   };
+
+  // While the app checks whether a login was saved, show a spinner (not the login screen).
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background }}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer theme={navTheme}>
