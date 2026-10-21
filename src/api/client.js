@@ -1,7 +1,7 @@
 // The ONLY place where the server address lives.
 // Use your laptop's Wi-Fi IPv4 address (run "ipconfig" to find it) and the server port.
 // If your Wi-Fi changes, this is the one line you update.
-export const BASE_URL = 'http://192.168.0.106:5000/api';
+export const BASE_URL = 'http://192.168.0.105:5000/api';
 
 let authToken = null;
 let onUnauthorized = null;

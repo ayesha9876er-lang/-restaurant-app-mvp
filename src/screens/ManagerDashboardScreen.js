@@ -1,283 +1,444 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
-  Switch,
-  FlatList,
   StyleSheet,
+  FlatList,
+  TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
+  TextInput,
+  Alert,
+  ScrollView,
 } from 'react-native';
 
-import { CATEGORIES, withId, createMenuItem, updateMenuItem } from '../api/menu';
-import { useApi } from '../hooks/useApi';
-import { useAuth } from '../hooks/useAuth';
-import { useTheme } from '../hooks/useTheme';
-
-const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400';
-
-// One row of the menu list: name, a price box with a Save button, and an availability switch.
-function ItemRow({ item, theme, onChange, onInvalid }) {
-  const [priceText, setPriceText] = useState(String(item.price));
-  const [busy, setBusy] = useState(false);
-
-  const priceChanged = priceText.trim() !== String(item.price);
-
-  const savePrice = async () => {
-    const price = Number(priceText);
-    if (!priceText.trim() || Number.isNaN(price) || price < 0) {
-      onInvalid('Enter a valid price (a number, 0 or more)');
-      return;
-    }
-    setBusy(true);
-    await onChange(item.id, { price }, `Price of ${item.name} is now Rs. ${price}`);
-    setBusy(false);
-  };
-
-  const toggleAvailability = async (value) => {
-    setBusy(true);
-    await onChange(
-      item.id,
-      { isAvailable: value },
-      `${item.name} is now ${value ? 'available' : 'unavailable'}`
-    );
-    setBusy(false);
-  };
-
-  return (
-    <View style={[styles.row, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
-      <View style={styles.rowTop}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.itemName, { color: theme.text }]}>{item.name}</Text>
-          <Text style={{ color: theme.secondaryText, fontSize: 12 }}>{item.category}</Text>
-        </View>
-        <View style={styles.switchBox}>
-          <Text style={{ color: theme.secondaryText, fontSize: 12, marginRight: 6 }}>
-            {item.isAvailable ? 'Available' : 'Unavailable'}
-          </Text>
-          <Switch
-            value={Boolean(item.isAvailable)}
-            onValueChange={toggleAvailability}
-            disabled={busy}
-            trackColor={{ false: '#BBBBBB', true: theme.primary }}
-          />
-        </View>
-      </View>
-
-      <View style={styles.priceRow}>
-        <Text style={{ color: theme.text }}>Rs.</Text>
-        <TextInput
-          style={[styles.priceInput, { color: theme.text, borderColor: theme.border }]}
-          value={priceText}
-          onChangeText={setPriceText}
-          keyboardType="numeric"
-        />
-        <TouchableOpacity
-          style={[styles.saveButton, { backgroundColor: theme.primary, opacity: priceChanged && !busy ? 1 : 0.4 }]}
-          onPress={savePrice}
-          disabled={!priceChanged || busy}
-        >
-          <Text style={styles.saveText}>Save price</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
+import { request } from '../api/client';
+import { updateMenuItem, withId } from '../api/menu';
 
 export default function ManagerDashboardScreen() {
-  const { user } = useAuth();
-  const { theme } = useTheme();
+  const [orders, setOrders] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
 
-  const { data, loading, error, refetch } = useApi('/menu');
-  const items = useMemo(() => (data || []).map(withId), [data]);
-
-  const [message, setMessage] = useState(null); // { type: 'success' | 'error', text }
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+  const [updatingId, setUpdatingId] = useState(null);
 
-  // "Add item" form
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
-  const [category, setCategory] = useState('Mains');
-  const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [newPrice, setNewPrice] = useState('');
+  const [savingPrice, setSavingPrice] = useState(false);
+  const [menuError, setMenuError] = useState('');
+  const [menuMessage, setMenuMessage] = useState('');
 
-  const showError = (text) => setMessage({ type: 'error', text });
-  const showSuccess = (text) => setMessage({ type: 'success', text });
-
-  // Used by every row: call the protected endpoint, then reload the list from the server.
-  const changeItem = async (id, changes, successText) => {
+  const fetchOrders = useCallback(async () => {
     try {
-      await updateMenuItem(id, changes);
-      await refetch();
-      showSuccess(successText);
+      const result = await request('/orders');
+      const list = Array.isArray(result)
+        ? result
+        : Array.isArray(result?.orders)
+          ? result.orders
+          : Array.isArray(result?.data)
+            ? result.data
+            : [];
+
+      setOrders(list);
+      setError('');
     } catch (err) {
-      showError(err.message);
+      setError(err.message || 'Orders could not be loaded.');
     }
-  };
+  }, []);
 
-  const addItem = async () => {
-    const itemName = name.trim();
-    const priceNumber = Number(price);
-
-    if (!itemName) {
-      showError('Enter a name for the new item');
-      return;
-    }
-    if (!price.trim() || Number.isNaN(priceNumber) || priceNumber < 0) {
-      showError('Enter a valid price (a number, 0 or more)');
-      return;
-    }
-
-    setAdding(true);
+  const fetchMenu = useCallback(async () => {
     try {
-      await createMenuItem({
-        name: itemName,
-        description: description.trim(),
-        price: priceNumber,
-        category,
-        image: DEFAULT_IMAGE,
-        isSpecial: false,
-        isAvailable: true,
-      });
-      setName('');
-      setDescription('');
-      setPrice('');
-      await refetch();
-      showSuccess(`${itemName} was added to the menu`);
-    } catch (err) {
-      showError(err.message);
-    } finally {
-      setAdding(false);
-    }
-  };
+      const result = await request('/menu');
+      const list = Array.isArray(result)
+        ? result
+        : Array.isArray(result?.items)
+          ? result.items
+          : Array.isArray(result?.data)
+            ? result.data
+            : [];
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await refetch();
+      setMenuItems(list.map(withId));
+      setMenuError('');
+    } catch (err) {
+      setMenuError(err.message || 'Menu could not be loaded.');
+    }
+  }, []);
+
+  const loadDashboard = useCallback(async () => {
+    await Promise.all([fetchOrders(), fetchMenu()]);
+    setLoading(false);
     setRefreshing(false);
+  }, [fetchOrders, fetchMenu]);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  const refreshDashboard = async () => {
+    setRefreshing(true);
+    await loadDashboard();
   };
 
-  if (loading && !data) {
+  const updateOrderStatus = async (orderId, newStatus) => {
+    if (!orderId) {
+      setError('Order ID is missing.');
+      return;
+    }
+
+    try {
+      setUpdatingId(String(orderId));
+      setError('');
+
+      await request(`/orders/${orderId}/status`, {
+        method: 'PATCH',
+        body: { status: newStatus },
+      });
+
+      await fetchOrders();
+    } catch (err) {
+      setError(err.message || 'Order status could not be updated.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const startEditingPrice = (item) => {
+    setEditingId(String(item.id || item._id));
+    setNewPrice(String(item.price ?? ''));
+    setMenuMessage('');
+    setMenuError('');
+  };
+
+  const savePrice = async (item) => {
+    const id = item.id || item._id;
+    const price = Number(newPrice.trim());
+
+    if (!newPrice.trim() || !Number.isFinite(price) || price < 0) {
+      setMenuError('Please enter a valid price (zero or greater).');
+      return;
+    }
+
+    try {
+      setSavingPrice(true);
+      setMenuError('');
+      setMenuMessage('');
+
+      const updated = await updateMenuItem(id, { price });
+
+      setMenuItems((current) =>
+        current.map((menuItem) =>
+          String(menuItem.id || menuItem._id) === String(id)
+            ? { ...menuItem, ...updated, price }
+            : menuItem
+        )
+      );
+
+      setEditingId(null);
+      setNewPrice('');
+      setMenuMessage(`${item.name} price updated successfully.`);
+    } catch (err) {
+      setMenuError(err.message || 'Price could not be updated.');
+    } finally {
+      setSavingPrice(false);
+    }
+  };
+
+  if (loading) {
     return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={{ color: theme.text, marginTop: 10 }}>Loading menu...</Text>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#d9534f" />
+        <Text style={styles.message}>Loading dashboard...</Text>
       </View>
     );
   }
-
-  if (error && !data) {
-    return (
-      <View style={[styles.centered, { backgroundColor: theme.background, padding: 24 }]}>
-        <Text style={{ color: theme.text, marginBottom: 12, textAlign: 'center' }}>{error}</Text>
-        <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.primary }]} onPress={refetch}>
-          <Text style={styles.saveText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const header = (
-    <View>
-      <Text style={[styles.title, { color: theme.text }]}>Manager Dashboard</Text>
-      <Text style={{ color: theme.secondaryText, marginBottom: 12 }}>Welcome, {user.name}</Text>
-
-      {message ? (
-        <Text style={[styles.message, { color: message.type === 'error' ? '#E63946' : '#2E7D32' }]}>
-          {message.text}
-        </Text>
-      ) : null}
-      {error ? <Text style={[styles.message, { color: '#E63946' }]}>Could not refresh: {error}</Text> : null}
-
-      <View style={[styles.form, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Add a menu item</Text>
-
-        <TextInput
-          style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-          placeholder="Name"
-          placeholderTextColor={theme.placeholder}
-          value={name}
-          onChangeText={setName}
-        />
-        <TextInput
-          style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-          placeholder="Description (optional)"
-          placeholderTextColor={theme.placeholder}
-          value={description}
-          onChangeText={setDescription}
-        />
-        <TextInput
-          style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-          placeholder="Price"
-          placeholderTextColor={theme.placeholder}
-          value={price}
-          onChangeText={setPrice}
-          keyboardType="numeric"
-        />
-
-        <View style={styles.chips}>
-          {CATEGORIES.map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[styles.chip, { backgroundColor: category === cat ? theme.primary : 'transparent', borderColor: theme.primary }]}
-              onPress={() => setCategory(cat)}
-            >
-              <Text style={{ color: category === cat ? '#FFF' : theme.text, fontSize: 12 }}>{cat}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: theme.primary, opacity: adding ? 0.6 : 1 }]}
-          onPress={addItem}
-          disabled={adding}
-        >
-          {adding ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveText}>Add item</Text>}
-        </TouchableOpacity>
-      </View>
-
-      <Text style={[styles.sectionTitle, { color: theme.text, marginTop: 16 }]}>
-        Menu management ({items.length} items)
-      </Text>
-    </View>
-  );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={header}
-        renderItem={({ item }) => (
-          <ItemRow item={item} theme={theme} onChange={changeItem} onInvalid={showError} />
-        )}
-        refreshing={refreshing}
-        onRefresh={onRefresh}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-      />
-    </View>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={refreshDashboard}
+        />
+      }
+      keyboardShouldPersistTaps="handled"
+    >
+      <Text style={styles.title}>Manager Dashboard</Text>
+
+      <TouchableOpacity
+        style={styles.refreshButton}
+        onPress={refreshDashboard}
+        disabled={refreshing}
+      >
+        <Text style={styles.btnText}>
+          {refreshing ? 'Refreshing...' : 'Refresh Dashboard'}
+        </Text>
+      </TouchableOpacity>
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      <Text style={styles.sectionTitle}>Menu Management</Text>
+      <Text style={styles.helper}>
+        Edit an item price and save it to the server.
+      </Text>
+
+      {menuError ? <Text style={styles.error}>{menuError}</Text> : null}
+      {menuMessage ? (
+        <Text style={styles.success}>{menuMessage}</Text>
+      ) : null}
+
+      {menuItems.length === 0 ? (
+        <Text style={styles.message}>No menu items found.</Text>
+      ) : (
+        menuItems.map((item, index) => {
+          const id = String(item.id || item._id || index);
+          const isEditing = editingId === id;
+
+          return (
+            <View key={id} style={styles.card}>
+              <Text style={styles.itemName}>
+                {item.name || 'Unnamed item'}
+              </Text>
+
+              <Text style={styles.text}>
+                Category: {item.category || 'N/A'}
+              </Text>
+
+              <Text style={styles.text}>
+                Current price: Rs. {item.price ?? 0}
+              </Text>
+
+              {isEditing ? (
+                <>
+                  <TextInput
+                    style={styles.priceInput}
+                    value={newPrice}
+                    onChangeText={setNewPrice}
+                    placeholder="Enter new price"
+                    keyboardType="decimal-pad"
+                  />
+
+                  <View style={styles.row}>
+                    <TouchableOpacity
+                      style={[styles.actionBtn, styles.saveButton]}
+                      onPress={() => savePrice(item)}
+                      disabled={savingPrice}
+                    >
+                      <Text style={styles.btnText}>
+                        {savingPrice ? 'Saving...' : 'Save Price'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.actionBtn, styles.cancelButton]}
+                      onPress={() => {
+                        setEditingId(null);
+                        setNewPrice('');
+                        setMenuError('');
+                      }}
+                      disabled={savingPrice}
+                    >
+                      <Text style={styles.btnText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => startEditingPrice(item)}
+                >
+                  <Text style={styles.btnText}>Edit Price</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        })
+      )}
+
+      <Text style={styles.sectionTitle}>Orders</Text>
+
+      {orders.length === 0 ? (
+        <Text style={styles.message}>No orders found.</Text>
+      ) : (
+        orders.map((item, index) => {
+          const orderId = item._id || item.id;
+          const busy = updatingId === String(orderId);
+
+          return (
+            <View
+              key={String(orderId || index)}
+              style={styles.card}
+            >
+              <Text style={styles.text}>
+                Order ID: {orderId || 'N/A'}
+              </Text>
+
+              <Text style={styles.text}>
+                Status:{' '}
+                <Text style={styles.status}>
+                  {item.status || 'Pending'}
+                </Text>
+              </Text>
+
+              <Text style={styles.text}>
+                Total: Rs. {item.total ?? item.totalAmount ?? 0}
+              </Text>
+
+              <View style={styles.row}>
+                <TouchableOpacity
+                  style={[
+                    styles.actionBtn,
+                    busy && styles.disabledButton,
+                  ]}
+                  disabled={updatingId !== null}
+                  onPress={() => updateOrderStatus(orderId, 'Preparing')}
+                >
+                  <Text style={styles.btnText}>
+                    {busy ? 'Updating...' : 'Preparing'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.actionBtn,
+                    styles.readyButton,
+                    busy && styles.disabledButton,
+                  ]}
+                  disabled={updatingId !== null}
+                  onPress={() => updateOrderStatus(orderId, 'Ready')}
+                >
+                  <Text style={styles.btnText}>Ready</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 4 },
-  message: { fontSize: 13, marginBottom: 10, fontWeight: '600' },
-  form: { borderWidth: 1, borderRadius: 12, padding: 14 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 10 },
-  input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8, fontSize: 15 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
-  chip: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5 },
-  addButton: { paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  row: { borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 10 },
-  rowTop: { flexDirection: 'row', alignItems: 'center' },
-  itemName: { fontSize: 15, fontWeight: 'bold' },
-  switchBox: { flexDirection: 'row', alignItems: 'center' },
-  priceRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 8 },
-  priceInput: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, minWidth: 90, fontSize: 15 },
-  saveButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  saveText: { color: '#FFF', fontWeight: 'bold' },
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  content: {
+    padding: 16,
+    paddingBottom: 36,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  title: {
+    fontSize: 23,
+    fontWeight: 'bold',
+    marginBottom: 14,
+    color: '#222',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#222',
+    marginTop: 18,
+    marginBottom: 6,
+  },
+  helper: {
+    color: '#555',
+    marginBottom: 12,
+  },
+  message: {
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 12,
+    color: '#555',
+  },
+  error: {
+    color: '#d9534f',
+    marginBottom: 10,
+  },
+  success: {
+    color: '#218838',
+    marginBottom: 10,
+    fontWeight: '600',
+  },
+  card: {
+    padding: 12,
+    backgroundColor: '#f9f9f9',
+    marginBottom: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  itemName: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    marginBottom: 6,
+    color: '#222',
+  },
+  text: {
+    fontSize: 14,
+    marginBottom: 5,
+    color: '#222',
+  },
+  status: {
+    fontWeight: 'bold',
+    color: '#d9534f',
+  },
+  row: {
+    flexDirection: 'row',
+    marginTop: 8,
+    gap: 8,
+  },
+  actionBtn: {
+    flex: 1,
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  editButton: {
+    backgroundColor: '#0275d8',
+    padding: 11,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  saveButton: {
+    backgroundColor: '#218838',
+  },
+  cancelButton: {
+    backgroundColor: '#6c757d',
+  },
+  readyButton: {
+    backgroundColor: '#5cb85c',
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  refreshButton: {
+    backgroundColor: '#d9534f',
+    padding: 11,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  btnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  priceInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    borderRadius: 6,
+    marginTop: 8,
+    color: '#222',
+  },
 });
