@@ -25,6 +25,10 @@ A frontend-only React Native restaurant application featuring customer ordering,
 
 The demo covers the complete Customer and Manager workflow: sign up, menu browsing, search, cart, promo codes, reservation, order placement, live order tracking, then manager login and order status update.
 
+## A2 Demo Video
+
+[Open A2 Demo Video]https://youtube.com/shorts/oeXJV4tcXN4?feature=share
+
 ---
 
 ## 📱 App Preview
