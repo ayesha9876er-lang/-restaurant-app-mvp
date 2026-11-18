@@ -1,7 +1,18 @@
 // The ONLY place where the server address lives.
 // Use your laptop's Wi-Fi IPv4 address (run "ipconfig" to find it) and the server port.
 // If your Wi-Fi changes, this is the one line you update.
-export const BASE_URL = 'http://192.168.0.105:5000/api';
+export const BASE_URL = 'http://192.168.0.109:5000/api';
+export async function testServerConnection() {
+  try {
+    const response = await fetch(`${BASE_URL}/menu`);
+    const data = await response.json();
+
+    console.log('SERVER CONNECTION SUCCESS');
+    console.log('MENU ITEMS:', data.length);
+  } catch (error) {
+    console.log('SERVER CONNECTION FAILED:', error);
+  }
+}
 
 let authToken = null;
 let onUnauthorized = null;
@@ -38,12 +49,13 @@ export async function request(path, { method = 'GET', body, timeout = 10000 } = 
       signal: controller.signal,
     });
   } catch (error) {
-    throw new Error(
-      error.name === 'AbortError'
-        ? 'The server took too long to answer. Please try again.'
-        : 'Cannot reach the server. Check that it is running and that your phone is on the same Wi-Fi.'
-    );
-  } finally {
+  console.log('API REQUEST FAILED:', error.name, error.message);
+  console.log('API URL:', BASE_URL + path);
+
+  throw new Error(
+    `${error.name}: ${error.message}`
+  );
+} finally {
     clearTimeout(timer);
   }
 
@@ -55,6 +67,7 @@ export async function request(path, { method = 'GET', body, timeout = 10000 } = 
   }
 
   if (!response.ok) {
+    console.log('API RESPONSE STATUS:', response.status);
     if (response.status === 401 && authToken && onUnauthorized) {
       onUnauthorized(); // expired or invalid token: log the user out
     }
@@ -64,6 +77,7 @@ export async function request(path, { method = 'GET', body, timeout = 10000 } = 
     }
     const error = new Error(message);
     error.status = response.status;
+    console.log('API ERROR MESSAGE:', message);
     throw error;
   }
 

@@ -1,4 +1,5 @@
 const express = require('express');
+const mangose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -21,6 +22,10 @@ if (!process.env.JWT_SECRET) {
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // Health check route
 app.get('/api/health', (req, res) => {

@@ -5,8 +5,12 @@ export const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
   const [cartState, dispatch] = useReducer(cartReducer, initialCartState);
+  console.log('CURRENT CART STATE:', cartState);
 
-  const addItem = (item) => dispatch({ type: 'ADD_ITEM', payload: item });
+  const addItem = (item) => {
+  console.log('ADD TO CART PRESSED:', item);
+  dispatch({ type: 'ADD_ITEM', payload: item });
+};
   const removeItem = (id) => dispatch({ type: 'REMOVE_ITEM', payload: id });
   const updateQuantity = (id, quantity) =>
     dispatch({ type: 'UPDATE_QUANTITY', payload: { id, quantity } });

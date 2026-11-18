@@ -1,12 +1,23 @@
 import React from 'react';
 import { View, Text, Switch, TouchableOpacity, StyleSheet } from 'react-native';
-
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { theme, isDark, toggleTheme } = useTheme();
+  const navigation = useNavigation();
+
+  if (!user) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.title, { color: theme.text }]}>Please Login</Text>
+      </View>
+    );
+  }
+
+  const isManager = user?.role?.toLowerCase() === 'manager' || user?.role?.toLowerCase() === 'admin';
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -15,33 +26,35 @@ export default function ProfileScreen() {
       <View style={[styles.card, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
         <View style={styles.row}>
           <Text style={[styles.label, { color: theme.secondaryText }]}>Name</Text>
-          <Text style={[styles.value, { color: theme.text }]}>{user.name}</Text>
+          <Text style={[styles.value, { color: theme.text }]}>{user.name || 'Guest'}</Text>
         </View>
         <View style={styles.row}>
           <Text style={[styles.label, { color: theme.secondaryText }]}>Email</Text>
-          <Text style={[styles.value, { color: theme.text }]}>{user.email}</Text>
+          <Text style={[styles.value, { color: theme.text }]}>{user.email || '-'}</Text>
         </View>
         <View style={styles.row}>
           <Text style={[styles.label, { color: theme.secondaryText }]}>Role</Text>
-          <Text style={[styles.value, { color: theme.text }]}>{user.role.toUpperCase()}</Text>
+          <Text style={[styles.value, { color: theme.text }]}>{(user.role || 'user').toUpperCase()}</Text>
         </View>
       </View>
+
+      {isManager ? (
+        <TouchableOpacity
+          style={[styles.logoutButton, { backgroundColor: '#222', marginBottom: 10 }]}
+          onPress={() => navigation.navigate('Dashboard')}
+        >
+          <Text style={styles.logoutText}>Open Manager Dashboard</Text>
+        </TouchableOpacity>
+      ) : null}
 
       <View style={[styles.card, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
         <View style={styles.switchRow}>
           <Text style={[styles.value, { color: theme.text }]}>Dark Mode</Text>
-          <Switch
-            value={isDark}
-            onValueChange={toggleTheme}
-            trackColor={{ false: '#BBBBBB', true: theme.primary }}
-          />
+          <Switch value={isDark} onValueChange={toggleTheme} trackColor={{ false: '#BBBBBB', true: theme.primary }} />
         </View>
       </View>
 
-      <TouchableOpacity
-        style={[styles.logoutButton, { backgroundColor: theme.primary }]}
-        onPress={logout}
-      >
+      <TouchableOpacity style={[styles.logoutButton, { backgroundColor: theme.primary }]} onPress={logout}>
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
     </View>

@@ -2,13 +2,9 @@ import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-
-  if (context === undefined) {
-    throw new Error(
-      'useAuth must be used inside an <AuthProvider>. Wrap your app with <AuthProvider> in App.js.'
-    );
-  }
-
-  return context;
+  const ctx = useContext(AuthContext);
+  // AppNavigator isLoading dhoondta hai, baaki loading dhoondte hain - dono de do
+  return { ...ctx, loading: ctx.isLoading };
 }
+
+export default useAuth;

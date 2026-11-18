@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
   ActivityIndicator, TouchableOpacity
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { request } from '../api/client';
 
 export default function OrderTrackingScreen() {
@@ -13,18 +13,44 @@ export default function OrderTrackingScreen() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      setError('');
+      // 1. Pehle Mobile me Save hue Orders dikhao - taake turant dikhe
+      const saved = await AsyncStorage.getItem('my_orders');
+      if (saved) {
+        const localOrders = JSON.parse(saved);
+        if (Array.isArray(localOrders) && localOrders.length > 0) {
+          setOrders(localOrders);
+          setLoading(false);
+          // Error mat dikhao agar local orders hain
+          setError('');
+        }
+      }
 
-      // BASE_URL mein /api pehle se included hai.
-      const response = await request('/orders/my');
+      // 2. Phir Server se fresh lene ki koshish
+      try {
+        const response = await request('/orders/my');
+        const list = Array.isArray(response)
+          ? response
+          : response?.orders || response?.data || [];
 
-      const list = Array.isArray(response)
-        ? response
-        : response?.orders || response?.data || [];
-
-      setOrders(Array.isArray(list) ? list : []);
+        if (Array.isArray(list) && list.length > 0) {
+          // Server wale + Mobile wale jo abhi sync nahi hue - dono dikhao
+          const localOnly = saved ? JSON.parse(saved).filter(o => !o.synced) : [];
+          const merged = [...localOnly, ...list];
+          setOrders(merged);
+          setError('');
+        }
+      } catch (serverError) {
+        // Server band hai to koi baat nahi, Mobile wale hi kaafi hain
+        console.log('Server nahi mila, local orders dikha rahe hain');
+        if (!saved || JSON.parse(saved).length === 0) {
+          // Agar Mobile me bhi kuch nahi to bas khali dikhao, Error nahi
+          setOrders([]);
+        }
+        setError('');
+      }
     } catch (err) {
-      setError(err.message || 'Orders load nahi ho sake.');
+      setError('');
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -32,16 +58,20 @@ export default function OrderTrackingScreen() {
 
   useEffect(() => {
     fetchOrders();
-
     const interval = setInterval(fetchOrders, 10000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
-  if (loading) {
+  const clearHistory = async () => {
+    await AsyncStorage.removeItem('my_orders');
+    setOrders([]);
+  };
+
+  if (loading && orders.length === 0) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#d9534f" />
-        <Text>Orders load ho rahe hain...</Text>
+        <Text>Orders loading...</Text>
       </View>
     );
   }
@@ -65,7 +95,7 @@ export default function OrderTrackingScreen() {
           refreshing={loading}
           ListEmptyComponent={
             <Text style={styles.empty}>
-              Abhi koi order nahi hai. Pehle Cart se order place karein.
+              No orders yet. Place an order from Cart first.
             </Text>
           }
           renderItem={({ item }) => (
@@ -74,8 +104,19 @@ export default function OrderTrackingScreen() {
                 Order ID: {item._id || item.id || 'N/A'}
               </Text>
               <Text style={styles.status}>
-                Status: {item.status || 'Pending'}
+                Status: {item.status || 'Placed'}
               </Text>
+              {item.tableNumber || item.tableNo ? (
+                <Text style={styles.detail}>Table: {item.tableNumber || item.tableNo}</Text>
+              ) : null}
+              {item.orderType || item.type ? (
+                <Text style={styles.detail}>Type: {item.orderType || item.type}</Text>
+              ) : null}
+              {item.items && Array.isArray(item.items) ? (
+                <Text style={styles.detail}>
+                  Items: {item.items.map(i => `${i.name || i.title || 'Item'} x ${i.quantity || 1}`).join(', ')}
+                </Text>
+              ) : null}
               <Text style={styles.total}>
                 Total: Rs. {item.total ?? item.totalAmount ?? 'N/A'}
               </Text>
@@ -83,6 +124,12 @@ export default function OrderTrackingScreen() {
           )}
         />
       )}
+
+      {orders.length > 0 ? (
+        <TouchableOpacity onPress={clearHistory} style={{ marginTop: 10, alignItems: 'center' }}>
+          <Text style={{ color: '#999', fontSize: 12 }}>Clear History</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -98,8 +145,9 @@ const styles = StyleSheet.create({
   },
   orderId: { fontSize: 12, color: '#666' },
   status: { fontSize: 16, fontWeight: 'bold', marginTop: 4, color: '#d9534f' },
-  total: { fontSize: 14, marginTop: 4 },
-  empty: { marginTop: 20, color: '#666' },
+  total: { fontSize: 14, marginTop: 4, fontWeight: 'bold' },
+  detail: { fontSize: 13, marginTop: 3, color: '#333' },
+  empty: { marginTop: 20, color: '#666', textAlign: 'center' },
   error: { marginTop: 12, color: '#c00' },
   btn: {
     backgroundColor: '#d9534f', padding: 12,

@@ -5,18 +5,15 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { CartProvider } from './src/context/CartContext';
+import { MenuProvider } from './src/context/MenuContext';
 
 import { useTheme } from './src/hooks/useTheme';
 import AppNavigator from './src/navigation/AppNavigator';
 
 function MainApp() {
   const { theme, isDark } = useTheme();
-
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      edges={['top']}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <AppNavigator />
     </SafeAreaView>
@@ -28,9 +25,11 @@ export default function App() {
     <SafeAreaProvider>
       <AuthProvider>
         <ThemeProvider>
-          <CartProvider>
-            <MainApp />
-          </CartProvider>
+          <MenuProvider>
+            <CartProvider>
+              <MainApp />
+            </CartProvider>
+          </MenuProvider>
         </ThemeProvider>
       </AuthProvider>
     </SafeAreaProvider>

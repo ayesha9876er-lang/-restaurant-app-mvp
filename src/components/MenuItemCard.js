@@ -2,9 +2,19 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 
 export default function MenuItemCard({ item, theme, onAddToCart }) {
+  // Agar Server se isAvailable na aaye to usko Available hi samjho
+  const isAvailable = item.isAvailable !== false;
+  
+  // Agar image khali ho to ye wali pic dikhao, khali mat choro
+  const imageUrl = item.image || item.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
+
   return (
-    <View style={[styles.card, { backgroundColor: theme.cardBackground, opacity: item.isAvailable ? 1 : 0.5 }]}>
-      <Image source={{ uri: item.image }} style={styles.image} />
+    <View style={[styles.card, { backgroundColor: theme.cardBackground, opacity: isAvailable ? 1 : 0.5 }]}>
+      <Image 
+        source={{ uri: imageUrl }} 
+        style={styles.image} 
+        resizeMode="cover"
+      />
 
       {item.isSpecial && (
         <View style={styles.badge}>
@@ -22,12 +32,12 @@ export default function MenuItemCard({ item, theme, onAddToCart }) {
           <Text style={[styles.price, { color: theme.primary }]}>Rs. {item.price}</Text>
 
           <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: item.isAvailable ? theme.primary : '#999' }]}
+            style={[styles.addButton, { backgroundColor: isAvailable ? theme.primary : '#999' }]}
             onPress={() => onAddToCart(item)}
-            disabled={!item.isAvailable}
+            disabled={!isAvailable}
           >
             <Text style={styles.addButtonText}>
-              {item.isAvailable ? 'Add' : 'Unavailable'}
+              {isAvailable ? 'Add' : 'Unavailable'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -37,9 +47,9 @@ export default function MenuItemCard({ item, theme, onAddToCart }) {
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: 'row', borderRadius: 12, marginHorizontal: 16, marginVertical: 6, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },
-  image: { width: 90, height: 90 },
-  badge: { position: 'absolute', top: 8, left: 8, backgroundColor: '#E63946', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  card: { flexDirection: 'row', borderRadius: 12, marginHorizontal: 16, marginVertical: 6, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, backgroundColor: '#fff', minHeight: 90 },
+  image: { width: 90, height: 90, backgroundColor: '#eee' },
+  badge: { position: 'absolute', top: 8, left: 8, backgroundColor: '#E63946', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, zIndex: 1 },
   badgeText: { color: '#FFF', fontSize: 9, fontWeight: 'bold' },
   info: { flex: 1, padding: 10, justifyContent: 'space-between' },
   name: { fontSize: 15, fontWeight: 'bold' },

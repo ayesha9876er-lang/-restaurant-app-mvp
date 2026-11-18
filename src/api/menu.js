@@ -1,10 +1,23 @@
+
 import { request } from './client';
 
 export const CATEGORIES = ['Starters', 'Mains', 'Desserts', 'Drinks'];
 
-// MongoDB sends "_id". The rest of the app (cart, cards) uses "id", so we add it here.
-export const withId = (item) => ({ ...item, id: item._id });
+// MongoDB _id or existing id ko standard id mein convert karta hai.
+export const withId = (item) => ({
+  ...item,
+  id: item._id || item.id,
+});
 
-// Manager-only calls. The token is added automatically by request().
-export const createMenuItem = (item) => request('/menu', { method: 'POST', body: item });
-export const updateMenuItem = (id, changes) => request(`/menu/${id}`, { method: 'PUT', body: changes });
+// Manager-only calls.
+export const createMenuItem = (item) =>
+  request('/menu', {
+    method: 'POST',
+    body: item,
+  });
+
+export const updateMenuItem = (id, changes) =>
+  request(`/menu/${id}`, {
+    method: 'PUT',
+    body: changes,
+  });

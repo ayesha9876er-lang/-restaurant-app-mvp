@@ -70,19 +70,40 @@ export default function LoginScreen() {
     setIsSubmitting(true);
     setServerError('');
 
-    // The server now does the real work, so the fake 1 second delay is gone.
-    const result =
-      mode === 'login'
-        ? await login(email.trim(), password)
-        : await signup(fullName.trim(), email.trim(), password);
+    try {
+      const result =
+        mode === 'login'
+          ? await login(email.trim(), password)
+          : await signup(fullName.trim(), email.trim(), password);
 
-    setIsSubmitting(false);
+      setIsSubmitting(false);
 
-    if (!result.success) {
-      setServerError(result.message);
-      Alert.alert(mode === 'login' ? 'Login Failed' : 'Signup Failed', result.message);
+      if (!result.success) {
+        // AbortError ho to bhi Login Failed mat dikhao, dobara try karo
+        if (result.message && (result.message.includes('Abort') || result.message.includes('Aborted') || result.message.includes('Network'))) {
+          console.log('Server nahi mila, offline login try kar rahe hain');
+          const retry = await login(email.trim(), password);
+          if (!retry.success) {
+            setServerError('Please try again');
+          }
+          return;
+        }
+        setServerError(result.message);
+        Alert.alert(mode === 'login' ? 'Login Failed' : 'Signup Failed', result.message);
+      }
+      // Success pe navigator khud switch karega
+    } catch (e) {
+      setIsSubmitting(false);
+      console.log('Login me Abort aaya, offline ja rahe hain');
+      try {
+        const retry = await login(email.trim(), password);
+        if (!retry.success) {
+          setServerError('Please try again');
+        }
+      } catch (err2) {
+        setServerError('Please try again');
+      }
     }
-    // On success the navigator switches screens by itself (user is now set).
   };
 
   const switchMode = () => {
